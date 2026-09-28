@@ -1,0 +1,103 @@
+---
+- name: Check node API
+  ansible.builtin.uri:
+    url: >-
+      {{ xui_node_scheme }}://127.0.0.1:{{ xui_panel_port
+      }}{{ xui_node_base_path }}panel/api/server/status
+    method: GET
+    headers:
+      Authorization: "Bearer {{ xui_node_api_token }}"
+    validate_certs: false
+    status_code: 200
+  register: xui_node_api_check
+  no_log: true
+
+- name: Read nodes from primary
+  ansible.builtin.uri:
+    url: "{{ xui_primary_url }}/panel/api/nodes/list"
+    method: GET
+    headers:
+      Authorization: "Bearer {{ xui_primary_api_token }}"
+    validate_certs: "{{ xui_primary_verify_tls | default(true) }}"
+    status_code: 200
+  register: xui_primary_nodes
+  delegate_to: localhost
+  become: false
+  no_log: true
+
+- name: Find current node
+  ansible.builtin.set_fact:
+    xui_existing_node: >-
+      {{
+        (
+          xui_primary_nodes.json.obj | default([])
+        )
+        | selectattr('name', 'equalto', xui_node_name)
+        | list
+        | first
+        | default({})
+      }}
+
+- name: Register node in primary
+  ansible.builtin.uri:
+    url: "{{ xui_primary_url }}/panel/api/nodes/add"
+    method: POST
+    headers:
+      Authorization: "Bearer {{ xui_primary_api_token }}"
+      Content-Type: "application/json"
+    body_format: json
+    body:
+      name: "{{ xui_node_name }}"
+      remark: "{{ xui_node_name }}"
+      scheme: "{{ xui_node_scheme }}"
+      address: "{{ xui_node_address }}"
+      port: "{{ xui_panel_port }}"
+      basePath: "{{ xui_node_base_path }}"
+      apiToken: "{{ xui_node_api_token }}"
+      clearApiToken: false
+      enable: true
+      allowPrivateAddress: false
+      inboundSyncMode: "{{ xui_node_inbound_sync_mode }}"
+      inboundTags: []
+      outboundTag: ""
+      tlsVerifyMode: "{{ xui_node_tls_verify_mode }}"
+      pinnedCertSha256: ""
+    validate_certs: "{{ xui_primary_verify_tls | default(true) }}"
+    status_code: 200
+  delegate_to: localhost
+  become: false
+  when: xui_existing_node == {}
+  no_log: true
+
+- name: Update existing node in primary
+  ansible.builtin.uri:
+    url: >-
+      {{ xui_primary_url }}/panel/api/nodes/update/{{ xui_existing_node.id }}
+    method: POST
+    headers:
+      Authorization: "Bearer {{ xui_primary_api_token }}"
+      Content-Type: "application/json"
+    body_format: json
+    body:
+      id: "{{ xui_existing_node.id }}"
+      name: "{{ xui_node_name }}"
+      remark: "{{ xui_node_name }}"
+      scheme: "{{ xui_node_scheme }}"
+      address: "{{ xui_node_address }}"
+      port: "{{ xui_panel_port }}"
+      basePath: "{{ xui_node_base_path }}"
+      apiToken: "{{ xui_node_api_token }}"
+      clearApiToken: false
+      enable: true
+      allowPrivateAddress: false
+      inboundSyncMode: "{{ xui_node_inbound_sync_mode }}"
+      inboundTags: []
+      outboundTag: ""
+      tlsVerifyMode: "{{ xui_node_tls_verify_mode }}"
+      pinnedCertSha256: ""
+    validate_certs: "{{ xui_primary_verify_tls | default(true) }}"
+    status_code: 200
+  delegate_to: localhost
+  become: false
+  when: xui_existing_node != {}
+  no_log: true

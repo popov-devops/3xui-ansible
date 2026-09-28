@@ -1,0 +1,8 @@
+---
+- name: Bootstrap 3x-ui node
+  hosts: xui_nodes
+  become: true
+
+  roles:
+    - common
+    - docker

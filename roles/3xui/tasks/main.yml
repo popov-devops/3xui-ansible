@@ -1,0 +1,40 @@
+---
+- name: Create 3x-ui directories
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+  loop:
+    - "{{ xui_install_dir }}"
+    - "{{ xui_db_dir }}"
+    - "{{ xui_cert_dir }}"
+    - "{{ xui_acme_dir }}"
+
+- name: Deploy docker compose
+  ansible.builtin.template:
+    src: compose.yml.j2
+    dest: "{{ xui_install_dir }}/compose.yml"
+    owner: root
+    group: root
+    mode: "0644"
+
+- name: Pull 3x-ui image
+  community.docker.docker_image:
+    name: "{{ xui_image }}"
+    source: pull
+
+- name: Start 3x-ui
+  community.docker.docker_compose_v2:
+    project_src: "{{ xui_install_dir }}"
+    state: present
+    pull: never
+    recreate: auto
+
+- name: Wait for 3x-ui panel
+  ansible.builtin.wait_for:
+    host: 127.0.0.1
+    port: "{{ xui_panel_port }}"
+    delay: 3
+    timeout: 60

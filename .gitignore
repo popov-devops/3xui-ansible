@@ -1,0 +1,28 @@
+# Ansible
+*.retry
+.ansible/
+
+# Secrets
+inventory/production/group_vars/vault.yml
+inventory/production/group_vars/*.secret.yml
+
+# 3x-ui inbound configs
+inbounds/*.json
+
+# Certificates / keys
+*.pem
+*.key
+*.crt
+*.p12
+
+# Local environment
+.env
+.env.*
+
+# Editors
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
