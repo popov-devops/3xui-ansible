@@ -1,0 +1,6 @@
+---
+- name: Register 3x-ui node in primary
+  hosts: xui_nodes
+  become: true
+  roles:
+    - 3xui-node

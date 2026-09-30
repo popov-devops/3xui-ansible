@@ -1,0 +1,26 @@
+---
+- name: Generate 3x-ui node API token
+  hosts: xui_nodes
+  become: true
+  gather_facts: false
+
+  tasks:
+    - name: Generate node-sync token
+      ansible.builtin.shell: |
+        docker exec "{{ xui_container_name }}" \
+          /app/x-ui setting -getApiToken -tokenName node-sync |
+          awk -F': ' '/^apiToken:/ {print $2; exit}'
+      args:
+        executable: /bin/bash
+      register: xui_generated_token
+      changed_when: true
+      no_log: true
+
+    - name: Save token to controller temporary file
+      ansible.builtin.copy:
+        content: "{{ xui_generated_token.stdout | trim }}\n"
+        dest: "{{ token_output_file }}"
+        mode: "0600"
+      delegate_to: localhost
+      become: false
+      no_log: true

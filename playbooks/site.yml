@@ -6,8 +6,4 @@
   import_playbook: deploy.yml
 
 - name: Register node in primary
-  hosts: xui_nodes
-  become: true
-
-  roles:
-    - 3xui-node
+  import_playbook: register.yml
