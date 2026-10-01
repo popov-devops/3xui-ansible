@@ -1,0 +1,129 @@
+---
+- name: Read inbound templates from controller
+  ansible.builtin.slurp:
+    src: "{{ playbook_dir }}/../inbounds/{{ item.file }}"
+  loop: "{{ xui_inbounds }}"
+  register: xui_inbound_templates
+  delegate_to: localhost
+  become: false
+
+- name: Parse inbound templates
+  ansible.builtin.set_fact:
+    xui_inbound_configs: >-
+      {{
+        xui_inbound_configs | default([]) +
+        [
+          {
+            'name': item.item.name,
+            'config': item.content | b64decode | from_json
+          }
+        ]
+      }}
+  loop: "{{ xui_inbound_templates.results }}"
+
+- name: Get existing inbounds from node
+  ansible.builtin.uri:
+    url: >-
+      {{ xui_node_scheme }}://127.0.0.1:{{ xui_node_api_port }}/panel/api/inbounds/list
+    method: GET
+    headers:
+      Authorization: "Bearer {{ xui_node_api_token }}"
+    validate_certs: false
+    status_code: 200
+  register: xui_existing_inbounds
+  no_log: true
+
+- name: Create missing inbounds
+  ansible.builtin.uri:
+    url: >-
+      {{ xui_node_scheme }}://127.0.0.1:{{ xui_node_api_port }}/panel/api/inbounds/add
+    method: POST
+    headers:
+      Authorization: "Bearer {{ xui_node_api_token }}"
+      Content-Type: "application/json"
+    body_format: json
+    body: "{{ item.config }}"
+    validate_certs: false
+    status_code: 200
+  loop: "{{ xui_inbound_configs }}"
+  loop_control:
+    label: "{{ item.name }}"
+  when:
+    - >
+      (
+        xui_existing_inbounds.json.obj | default([])
+        | selectattr('remark', 'equalto', item.config.remark | default(''))
+        | list
+        | length
+      ) == 0
+  no_log: true
+
+- name: Refresh inbound list after creation
+  ansible.builtin.uri:
+    url: >-
+      {{ xui_node_scheme }}://127.0.0.1:{{ xui_node_api_port }}/panel/api/inbounds/list
+    method: GET
+    headers:
+      Authorization: "Bearer {{ xui_node_api_token }}"
+    validate_certs: false
+    status_code: 200
+  register: xui_existing_inbounds_after_create
+  no_log: true
+
+- name: Update existing inbounds
+  ansible.builtin.uri:
+    url: >-
+      {{ xui_node_scheme }}://127.0.0.1:{{ xui_node_api_port
+      }}/panel/api/inbounds/update/{{ existing.id }}
+    method: POST
+    headers:
+      Authorization: "Bearer {{ xui_node_api_token }}"
+      Content-Type: "application/json"
+    body_format: json
+    body: "{{ item.config }}"
+    validate_certs: false
+    status_code: 200
+  vars:
+    existing: >-
+      {{
+        xui_existing_inbounds_after_create.json.obj | default([])
+        | selectattr('remark', 'equalto', item.config.remark | default(''))
+        | list
+        | first
+        | default({})
+      }}
+  loop: "{{ xui_inbound_configs }}"
+  loop_control:
+    label: "{{ item.name }}"
+  when:
+    - existing != {}
+    - existing.id is defined
+  no_log: true
+
+- name: Get final inbound list
+  ansible.builtin.uri:
+    url: >-
+      {{ xui_node_scheme }}://127.0.0.1:{{ xui_node_api_port }}/panel/api/inbounds/list
+    method: GET
+    headers:
+      Authorization: "Bearer {{ xui_node_api_token }}"
+    validate_certs: false
+    status_code: 200
+  register: xui_final_inbounds
+  no_log: true
+
+- name: Verify required inbounds exist
+  ansible.builtin.assert:
+    that:
+      - >
+        (
+          xui_final_inbounds.json.obj | default([])
+          | selectattr('remark', 'equalto', item.config.remark | default(''))
+          | list
+          | length
+        ) == 1
+    fail_msg: "Inbound '{{ item.name }}' was not found on the node"
+    success_msg: "Inbound '{{ item.name }}' is present"
+  loop: "{{ xui_inbound_configs }}"
+  loop_control:
+    label: "{{ item.name }}"

@@ -1,9 +1,21 @@
 ---
-- name: Bootstrap node
+- name: Bootstrap VPN node
   import_playbook: bootstrap.yml
 
-- name: Deploy 3x-ui
-  import_playbook: deploy.yml
+- name: Install 3x-ui
+  hosts: xui_nodes
+  become: true
+  roles:
+    - 3xui
 
-- name: Register node in primary
-  import_playbook: register.yml
+- name: Register node in primary 3x-ui
+  hosts: xui_nodes
+  become: true
+  roles:
+    - 3xui-node
+
+- name: Configure 3x-ui inbounds
+  hosts: xui_nodes
+  become: true
+  roles:
+    - 3xui-inbounds

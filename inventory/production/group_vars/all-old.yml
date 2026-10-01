@@ -4,9 +4,18 @@
 # ============================================================
 
 xui_version: "v3.8.5"
+xui_image: "ghcr.io/mhsanaei/3x-ui:v3.8.5"
+
+xui_container_name: "3x-ui"
+
+xui_install_dir: "/opt/3x-ui"
+xui_db_dir: "/opt/3x-ui/db"
+xui_cert_dir: "/opt/3x-ui/cert"
+xui_acme_dir: "/opt/3x-ui/acme"
 
 xui_panel_port: 2053
-xui_web_base_path: "/"
+
+xui_restart_policy: "unless-stopped"
 
 
 # ============================================================
@@ -15,12 +24,12 @@ xui_web_base_path: "/"
 
 xui_node_name: "edge-01"
 
-# HTTP между primary и node.
-# TCP/2053 на node разрешён только с IP primary.
+# Пока используем HTTP между primary и node.
+# 2053/tcp будет доступен только с IP primary.
 xui_node_scheme: "http"
 xui_node_base_path: "/"
 
-# Primary синхронизирует все inbound'ы.
+# Primary будет синхронизировать все inbound'ы.
 xui_node_inbound_sync_mode: "all"
 
 xui_node_tls_verify_mode: "skip"
@@ -33,6 +42,7 @@ xui_node_tls_verify_mode: "skip"
 xui_primary_url: "https://PRIMARY.example.com"
 
 # IP primary VM.
+# Именно этот IP будет разрешён на TCP/2053 node.
 xui_primary_ip: "CHANGE_ME"
 
 xui_primary_verify_tls: true

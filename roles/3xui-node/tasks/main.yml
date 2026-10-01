@@ -1,37 +1,35 @@
 ---
-- name: Check node API
+- name: Verify 3x-ui API is available on node
   ansible.builtin.uri:
     url: >-
-      {{ xui_node_scheme }}://127.0.0.1:{{ xui_panel_port
+      {{ xui_node_scheme }}://127.0.0.1:{{ xui_node_api_port
       }}{{ xui_node_base_path }}panel/api/server/status
     method: GET
     headers:
       Authorization: "Bearer {{ xui_node_api_token }}"
     validate_certs: false
     status_code: 200
-  register: xui_node_api_check
+  register: xui_node_status
   no_log: true
 
-- name: Read nodes from primary
+- name: Get nodes from primary
   ansible.builtin.uri:
     url: "{{ xui_primary_url }}/panel/api/nodes/list"
     method: GET
     headers:
       Authorization: "Bearer {{ xui_primary_api_token }}"
-    validate_certs: "{{ xui_primary_verify_tls | default(true) }}"
+    validate_certs: "{{ xui_primary_verify_tls }}"
     status_code: 200
   register: xui_primary_nodes
   delegate_to: localhost
   become: false
   no_log: true
 
-- name: Find current node
+- name: Find existing node
   ansible.builtin.set_fact:
     xui_existing_node: >-
       {{
-        (
-          xui_primary_nodes.json.obj | default([])
-        )
+        xui_primary_nodes.json.obj | default([])
         | selectattr('name', 'equalto', xui_node_name)
         | list
         | first
@@ -51,7 +49,7 @@
       remark: "{{ xui_node_name }}"
       scheme: "{{ xui_node_scheme }}"
       address: "{{ xui_node_address }}"
-      port: "{{ xui_panel_port }}"
+      port: "{{ xui_node_api_port }}"
       basePath: "{{ xui_node_base_path }}"
       apiToken: "{{ xui_node_api_token }}"
       clearApiToken: false
@@ -62,7 +60,7 @@
       outboundTag: ""
       tlsVerifyMode: "{{ xui_node_tls_verify_mode }}"
       pinnedCertSha256: ""
-    validate_certs: "{{ xui_primary_verify_tls | default(true) }}"
+    validate_certs: "{{ xui_primary_verify_tls }}"
     status_code: 200
   delegate_to: localhost
   become: false
@@ -84,7 +82,7 @@
       remark: "{{ xui_node_name }}"
       scheme: "{{ xui_node_scheme }}"
       address: "{{ xui_node_address }}"
-      port: "{{ xui_panel_port }}"
+      port: "{{ xui_node_api_port }}"
       basePath: "{{ xui_node_base_path }}"
       apiToken: "{{ xui_node_api_token }}"
       clearApiToken: false
@@ -95,7 +93,7 @@
       outboundTag: ""
       tlsVerifyMode: "{{ xui_node_tls_verify_mode }}"
       pinnedCertSha256: ""
-    validate_certs: "{{ xui_primary_verify_tls | default(true) }}"
+    validate_certs: "{{ xui_primary_verify_tls }}"
     status_code: 200
   delegate_to: localhost
   become: false

@@ -1,13 +1,6 @@
 ---
-# Token of the node's 3x-ui API.
-#
-# Create it in:
-# 3x-ui -> Settings -> Security -> API Token
-#
-xui_node_api_token: "CHANGE_ME"
-
 # API token of the PRIMARY 3x-ui.
 #
-# Used by Ansible to register this node.
+# Used by Ansible to register new nodes.
 #
 xui_primary_api_token: "CHANGE_ME"

@@ -1,7 +1,0 @@
----
-- name: Deploy 3x-ui
-  hosts: xui_nodes
-  become: true
-
-  roles:
-    - 3xui

@@ -1,40 +1,67 @@
 ---
-- name: Create 3x-ui directories
-  ansible.builtin.file:
-    path: "{{ item }}"
-    state: directory
+- name: Check whether 3x-ui is already installed
+  ansible.builtin.stat:
+    path: /usr/local/x-ui/x-ui
+  register: xui_binary
+
+- name: Download official 3x-ui installer
+  ansible.builtin.get_url:
+    url: "https://raw.githubusercontent.com/MHSanaei/3x-ui/{{ xui_version }}/install.sh"
+    dest: /tmp/3xui-install.sh
     owner: root
     group: root
-    mode: "0755"
-  loop:
-    - "{{ xui_install_dir }}"
-    - "{{ xui_db_dir }}"
-    - "{{ xui_cert_dir }}"
-    - "{{ xui_acme_dir }}"
+    mode: "0700"
+  when: not xui_binary.stat.exists
 
-- name: Deploy docker compose
-  ansible.builtin.template:
-    src: compose.yml.j2
-    dest: "{{ xui_install_dir }}/compose.yml"
-    owner: root
-    group: root
-    mode: "0644"
+- name: Install 3x-ui using official installer
+  ansible.builtin.command:
+    argv:
+      - /tmp/3xui-install.sh
+      - "{{ xui_version }}"
+  environment:
+    XUI_NONINTERACTIVE: "1"
+    XUI_PANEL_PORT: "{{ xui_panel_port | string }}"
+    XUI_WEB_BASE_PATH: "{{ xui_web_base_path }}"
+  when: not xui_binary.stat.exists
+  register: xui_install
+  no_log: true
 
-- name: Pull 3x-ui image
-  community.docker.docker_image:
-    name: "{{ xui_image }}"
-    source: pull
+- name: Ensure x-ui service is enabled and started
+  ansible.builtin.systemd:
+    name: x-ui
+    enabled: true
+    state: started
 
-- name: Start 3x-ui
-  community.docker.docker_compose_v2:
-    project_src: "{{ xui_install_dir }}"
-    state: present
-    pull: never
-    recreate: auto
+- name: Read installer result
+  ansible.builtin.slurp:
+    src: /etc/x-ui/install-result.env
+  register: xui_install_result
+  no_log: true
+
+- name: Parse installer result
+  ansible.builtin.set_fact:
+    xui_install_env: >-
+      {{
+        dict(
+          xui_install_result.content
+          | b64decode
+          | splitlines()
+          | reject('match', '^\\s*$')
+          | reject('match', '^#')
+          | map('split', '=', 1)
+        )
+      }}
+  no_log: true
+
+- name: Set node API token from installer
+  ansible.builtin.set_fact:
+    xui_node_api_token: "{{ xui_install_env.XUI_API_TOKEN }}"
+  no_log: true
 
 - name: Wait for 3x-ui panel
   ansible.builtin.wait_for:
     host: 127.0.0.1
     port: "{{ xui_panel_port }}"
-    delay: 3
+    delay: 2
     timeout: 60
+
